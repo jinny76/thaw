@@ -27,6 +27,14 @@ export function CreatePage() {
 
   const [copied, setCopied] = useState<'client' | 'host' | null>(null);
 
+  // 房间号合法性：9 位数字 或 2~16 个中文（与路由正则一致）。
+  const roomIdOk = /^(?:\d{9}|[一-鿿]{2,16})$/.test(roomId);
+  // 弱口令判断（自定义口令时提醒）：太短 / 纯数字 / 常见弱口令。
+  const passWeak =
+    passphrase.length < 8 ||
+    /^\d+$/.test(passphrase) ||
+    /^(password|123456|111111|000000|abcabc|qwerty)/i.test(passphrase);
+
   const meet = meetTime.trim();
   const shareLink = `${window.location.origin}/${roomId}`;
   const finalNick = nickname.trim() || initialNick;
@@ -59,32 +67,52 @@ export function CreatePage() {
     <main className="gate">
       <pre className="gate__banner">{'> INITIALIZING SECURE CHANNEL...'}</pre>
       <dl className="gate__facts">
-        <dt>房间号</dt>
+        <dt>房间号（可自定义）</dt>
         <dd className="mono">
-          <span className="gate__val">{roomId}</span>
+          <input
+            className={`mono gate__input gate__facts-input${roomIdOk ? '' : ' is-bad'}`}
+            value={roomId}
+            maxLength={16}
+            onChange={(e) => setRoomId(e.target.value.trim())}
+            aria-label="房间号"
+          />
           <span className="gate__gen">
-            <button type="button" onClick={() => regenRoom(false)} title="换数字房间号">
+            <button type="button" onClick={() => regenRoom(false)} title="随机数字房间号">
               数字
             </button>
-            <button type="button" onClick={() => regenRoom(true)} title="换中文房间号">
+            <button type="button" onClick={() => regenRoom(true)} title="随机中文房间号">
               中文
             </button>
           </span>
         </dd>
+        {!roomIdOk && (
+          <dd className="gate__warn">{'⚠ 房间号需为 9 位数字，或 2~16 个中文字'}</dd>
+        )}
         <dt>分享链接</dt>
         <dd className="mono gate__link">{shareLink}</dd>
-        <dt>口令（带外发给对方）</dt>
+        <dt>口令（可自定义，带外发给对方）</dt>
         <dd className="mono gate__pass">
-          <span className="gate__val">{passphrase}</span>
+          <input
+            className={`mono gate__input gate__facts-input${passWeak ? ' is-bad' : ''}`}
+            value={passphrase}
+            maxLength={128}
+            onChange={(e) => setPassphrase(e.target.value)}
+            aria-label="口令"
+          />
           <span className="gate__gen">
-            <button type="button" onClick={() => regenPass(false)} title="换英文口令">
+            <button type="button" onClick={() => regenPass(false)} title="随机英文口令">
               英文
             </button>
-            <button type="button" onClick={() => regenPass(true)} title="换中文口令">
+            <button type="button" onClick={() => regenPass(true)} title="随机中文口令">
               中文
             </button>
           </span>
         </dd>
+        {passWeak && (
+          <dd className="gate__warn">
+            {'⚠ 口令偏弱（太短/纯数字/常见词），易被爆破。建议用「随机」按钮生成高熵口令。'}
+          </dd>
+        )}
         {meet && (
           <>
             <dt>约定联系时间</dt>
@@ -162,7 +190,12 @@ export function CreatePage() {
         {'> 「房主入口」含口令(藏在 # 后不上网)，只发给你自己/存书签，打开即以房主身份进房。'}
       </p>
       <div className="gate__actions">
-        <button type="button" className="primary" onClick={() => setEntered(true)}>
+        <button
+          type="button"
+          className="primary"
+          disabled={!roomIdOk || !passphrase}
+          onClick={() => setEntered(true)}
+        >
           ▸ 立即进入聊天室
         </button>
         <button type="button" onClick={() => navigate('/')}>
