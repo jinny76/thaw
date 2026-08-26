@@ -67,10 +67,23 @@ export function ChatWindow({ mode }: { mode: Mode }) {
     };
   }, []);
 
+  // 只在「新消息到达」且用户已在底部附近时滚到底；焚毁消失不滚动。
   const endRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const prevLenRef = useRef(0);
+  const msgCount = chat.messages.length;
   useEffect(() => {
+    const grew = msgCount > prevLenRef.current;
+    prevLenRef.current = msgCount;
+    if (!grew) return; // 消息减少（焚毁）→ 不滚动
+    const body = bodyRef.current;
+    if (body) {
+      // 用户本就在底部附近才自动滚（在上面翻历史时不打扰）。
+      const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 120;
+      if (!nearBottom) return;
+    }
     endRef.current?.scrollIntoView({ block: 'end' });
-  }, [chat.messages.length]);
+  }, [msgCount]);
 
   // 截屏贴图：从剪贴板取 image/* 直接走图片通道。
   const onPaste = (e: ClipboardEvent) => {
@@ -115,7 +128,7 @@ export function ChatWindow({ mode }: { mode: Mode }) {
         secure={session.secure}
         phase={session.phase}
       />
-      <div className={`chat__body${obscured ? ' chat__body--obscured' : ''}`}>
+      <div ref={bodyRef} className={`chat__body${obscured ? ' chat__body--obscured' : ''}`}>
         {session.phase === 'error' && (
           <div className="chat__terminal">
             <p className="chat__notice chat__notice--err">
