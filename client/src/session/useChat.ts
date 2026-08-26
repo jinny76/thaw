@@ -19,6 +19,7 @@ import {
 } from '../media/chunker.js';
 import { OutgoingTransfer, classifyKind } from '../media/transfer.js';
 import { readMediaDuration, computeMediaTtl } from '../media/duration.js';
+import * as sfx from '../ui/sfx.js';
 
 export type Mode =
   | {
@@ -51,6 +52,8 @@ export function useChat(mode: Mode): ChatController {
   const slotRef = useRef<'A' | 'B' | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
   const startedHandshakeRef = useRef(false);
+  // 是否已为「对方接入」响过提示音（room_state 与 peer_joined 去重，避免双响）。
+  const peerChimeRef = useRef(false);
   // 富媒体接收：msgId → 重组器。
   const reassemblersRef = useRef<Map<string, MediaReassembler>>(new Map());
   // 富媒体发送：msgId → 传输器（保留原文件块，供断点续传）。
@@ -109,6 +112,7 @@ export function useChat(mode: Mode): ChatController {
         cryptoRef.current = outcome.crypto;
         sessionTokenRef.current = outcome.sessionToken ?? null;
         dispatch({ type: 'SECURE' });
+        sfx.secure(); // 端到端加密建立成功 → 确认音
         // 握手完成 → 把本端昵称经 E2EE 发给对方（服务器看不到明文）。
         // 昵称是控制消息，不走棘轮（ratchet=false，用稳定会话密钥）。
         void cryptoRef.current
@@ -149,15 +153,30 @@ export function useChat(mode: Mode): ChatController {
           stopJoinRetry(); // 已进入房间，停止等待重试
           slotRef.current = frame.slot;
           dispatch({ type: 'ROOM_STATE', peers: frame.peers, slot: frame.slot });
-          if (frame.peers === 2) startHandshake();
+          if (frame.peers === 2) {
+            // 我方后到、对方已在房内 → 视作「对方接入」，响一次提示音。
+            if (!peerChimeRef.current) {
+              peerChimeRef.current = true;
+              sfx.peerJoined();
+            }
+            startHandshake();
+          }
           break;
         case 'peer_joined':
           dispatch({ type: 'PEER_JOINED' });
+          // 对方接入（我方先到、对方后进）→ 响一次提示音。
+          if (!peerChimeRef.current) {
+            peerChimeRef.current = true;
+            sfx.peerJoined();
+          }
           startHandshake();
           break;
         case 'peer_left':
           dispatch({ type: 'PEER_LEFT' });
+          sfx.peerLeft();
           // 对方离开 → 重置握手状态，使其重新进入时能重新握手（否则卡在等待）。
+          // 也重置接入提示音标记，使对方重新进入时能再次响。
+          peerChimeRef.current = false;
           startedHandshakeRef.current = false;
           handshakeRef.current = null;
           cryptoRef.current = new PlaintextCrypto();
@@ -210,6 +229,7 @@ export function useChat(mode: Mode): ChatController {
               status: 'received',
             };
             setMessages((prev) => [...prev, incoming]);
+            sfx.messageIn();
           } catch {
             // 解密失败：忽略该帧（可能是篡改/错口令）
           }
@@ -246,6 +266,7 @@ export function useChat(mode: Mode): ChatController {
             setMessages((prev) => {
               // 重复 meta（续传时对方可能重发）→ 不重复插入。
               if (prev.some((m) => m.id === frame.msgId)) return prev;
+              sfx.messageIn();
               return [...prev, placeholder];
             });
           } catch {
@@ -430,6 +451,7 @@ export function useChat(mode: Mode): ChatController {
       status: 'sent',
     };
     setMessages((prev) => [...prev, local]);
+    sfx.sendTick();
     void cryptoRef.current
       .encrypt(trimmed, buildAad(mode.roomId, 'msg', msgId))
       .then(({ nonce, ciphertext, seq }) => {

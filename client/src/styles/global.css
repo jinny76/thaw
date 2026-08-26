@@ -633,6 +633,26 @@ button:disabled {
   color: var(--amber);
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
+/* 音效静音开关：推到最右，终端按钮风 */
+.statusbar__mute {
+  margin-left: auto;
+  padding: 0.15rem 0.55rem;
+  font: inherit;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(0, 255, 156, 0.35);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.statusbar__mute:hover {
+  box-shadow: 0 0 8px rgba(0, 255, 156, 0.3);
+}
+.statusbar__mute[aria-pressed='true'] {
+  color: var(--fg-dim);
+  border-color: rgba(255, 255, 255, 0.15);
+}
 @keyframes pulse-dot {
   0%,
   100% {
