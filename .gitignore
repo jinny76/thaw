@@ -9,3 +9,8 @@ playwright-report/
 test-results/
 .vite/
 .supergoal/
+
+# 个人自用脚本（不提交）
+start-thaw.bat
+start-thaw.sh
+_local/

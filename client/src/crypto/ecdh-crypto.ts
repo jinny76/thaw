@@ -7,6 +7,7 @@ import { encrypt, decrypt, type AeadPayload } from './aead.js';
 import { NonceCounter } from './aead.js';
 import { SendRatchet, RecvRatchet } from './ratchet.js';
 import { utf8ToBytes } from './encoding.js';
+import { pad, unpad } from './padding.js';
 import type { SessionCrypto, EncryptedPayload } from './session-crypto.js';
 
 export class EcdhCrypto implements SessionCrypto {
@@ -38,27 +39,29 @@ export class EcdhCrypto implements SessionCrypto {
    */
   async encrypt(plaintext: string, aad: string, ratchet = true): Promise<EncryptedPayload> {
     const nonce = this.nonces.next();
+    // 定长填充：明文补到固定桶大小，密文长度不泄露真实消息长短。
+    const padded = pad(utf8ToBytes(plaintext));
     if (!ratchet) {
       // 稳定密钥路径（昵称等控制消息）。
-      return encrypt(this.key, utf8ToBytes(plaintext), nonce, aad);
+      return encrypt(this.key, padded, nonce, aad);
     }
     const { seq, key } = await (await this.ensureSend()).next();
     // AAD 额外绑定 seq，防重排/重放。
-    const payload = await encrypt(key, utf8ToBytes(plaintext), nonce, `${aad}|${seq}`);
+    const payload = await encrypt(key, padded, nonce, `${aad}|${seq}`);
     return { ...payload, seq };
   }
 
-  /** 解密：payload 带 seq → 走棘轮；无 seq → 稳定会话密钥（昵称等）。 */
+  /** 解密：payload 带 seq → 走棘轮；无 seq → 稳定会话密钥（昵称等）。剥离填充。 */
   async decrypt(payload: EncryptedPayload, aad: string): Promise<string> {
     const seq = payload.seq;
     if (seq === undefined) {
       const bytes = await decrypt(this.key, payload as AeadPayload, aad);
-      return new TextDecoder().decode(bytes);
+      return new TextDecoder().decode(unpad(bytes));
     }
     const key = await (await this.ensureRecv()).keyFor(seq);
     if (!key) throw new Error('no message key for seq');
     const bytes = await decrypt(key, payload as AeadPayload, `${aad}|${seq}`);
-    return new TextDecoder().decode(bytes);
+    return new TextDecoder().decode(unpad(bytes));
   }
 
   /** 供富媒体分块使用：拿到一个新 nonce。 */
