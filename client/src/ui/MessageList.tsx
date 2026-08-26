@@ -9,8 +9,16 @@ import { linkify } from './linkify.js';
 import { Lightbox, type LightboxMedia } from './Lightbox.js';
 import { BurnParticles } from './BurnParticles.js';
 
-/** 气泡包裹层：焚毁时测量尺寸并叠加燃烧粒子特效。 */
-function Bubble({ burning, children }: { burning: boolean; children: React.ReactNode }) {
+/** 气泡包裹层：焚毁时测量尺寸并叠加燃烧粒子特效；燃尽条随气泡等宽。 */
+function Bubble({
+  burning,
+  timer,
+  children,
+}: {
+  burning: boolean;
+  timer: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   useLayoutEffect(() => {
@@ -24,6 +32,7 @@ function Bubble({ burning, children }: { burning: boolean; children: React.React
       <div className="msg__bubble" ref={ref}>
         {children}
       </div>
+      {timer}
       {burning && size && <BurnParticles width={size.w} height={size.h} />}
     </div>
   );
@@ -58,7 +67,17 @@ export function MessageList({
               <Avatar name={label(m.author)} size={22} />
               <span className="msg__author">{label(m.author)}</span>
             </span>
-            <Bubble burning={m.status === 'burning'}>
+            <Bubble
+              burning={m.status === 'burning'}
+              timer={
+                <BurnTimer
+                  startAt={burnStart(m)}
+                  ttl={m.ttl}
+                  mine={m.author === 'me'}
+                  onExpire={() => onBurn(m.id)}
+                />
+              }
+            >
               {m.kind === 'text' ? (
                 <span className="msg__text">{linkify(m.text)}</span>
               ) : (
@@ -124,12 +143,6 @@ export function MessageList({
                 </span>
               )}
             </Bubble>
-            <BurnTimer
-              startAt={burnStart(m)}
-              ttl={m.ttl}
-              mine={m.author === 'me'}
-              onExpire={() => onBurn(m.id)}
-            />
           </li>
         ))}
       </ul>

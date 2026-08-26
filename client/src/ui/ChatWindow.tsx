@@ -1,15 +1,25 @@
 // 聊天窗（phase 3 基础版；间谍风精修在 phase 8）。
 // 消息内容一律以文本节点渲染 —— 绝不 innerHTML/dangerouslySetInnerHTML（XSS 防线）。
 
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+} from 'react';
 import type { Mode } from '../session/useChat.js';
 import { useChat } from '../session/useChat.js';
 import { usePanicKey } from './usePanicKey.js';
 import { useAntiCapture } from './useAntiCapture.js';
+import { useBackGuard } from './useBackGuard.js';
 import { MessageList } from './MessageList.js';
 import { StatusBar } from './StatusBar.js';
 import { Composer } from './Composer.js';
 import { Watermark } from './Watermark.js';
+import { ConfirmDialog } from './ConfirmDialog.js';
 import { navigate } from './useRoute.js';
 
 export function ChatWindow({ mode }: { mode: Mode }) {
@@ -19,6 +29,13 @@ export function ChatWindow({ mode }: { mode: Mode }) {
   const { obscured } = useAntiCapture({
     onPrintScreen: () => chat.messages.forEach((m) => chat.burn(m.id)),
   });
+
+  // 拦截移动端边缘返回手势/浏览器返回，防误触退出（退出即焚、无法重进）。
+  const [confirmExit, setConfirmExit] = useState(false);
+  const inRoom =
+    chat.session.phase !== 'closed' && chat.session.phase !== 'error';
+  const onBackAttempt = useCallback(() => setConfirmExit(true), []);
+  const { release } = useBackGuard(inRoom, onBackAttempt);
   // 隐写水印标识（房间号后几位，仅本会话可见）。
   const wmLabel = useMemo(() => `THAW·${mode.roomId.slice(-4)}`, [mode.roomId]);
 
@@ -81,6 +98,7 @@ export function ChatWindow({ mode }: { mode: Mode }) {
       onDragLeave={() => setDragOver(false)}
     >
       <div className="crt" aria-hidden="true" />
+      <Watermark label={wmLabel} />
       <StatusBar
         roomId={session.roomId}
         peers={session.peers}
@@ -88,7 +106,6 @@ export function ChatWindow({ mode }: { mode: Mode }) {
         phase={session.phase}
       />
       <div className={`chat__body${obscured ? ' chat__body--obscured' : ''}`}>
-        <Watermark label={wmLabel} />
         {session.phase === 'error' && (
           <div className="chat__terminal">
             <p className="chat__notice chat__notice--err">
@@ -133,8 +150,23 @@ export function ChatWindow({ mode }: { mode: Mode }) {
         disabled={session.phase !== 'connected' || !session.secure}
         onSend={chat.sendText}
         onSendFile={chat.sendFile}
-        onLeave={chat.leave}
+        onLeave={() => setConfirmExit(true)}
       />
+      {confirmExit && (
+        <ConfirmDialog
+          title="退出聊天室？"
+          message="退出后本端所有消息立即焚毁，房间可能销毁、无法重新进入。确定要退出吗？"
+          confirmText="退出并焚毁"
+          cancelText="留在此处"
+          danger
+          onConfirm={() => {
+            setConfirmExit(false);
+            chat.leave();
+            release(); // 放行真正的返回
+          }}
+          onCancel={() => setConfirmExit(false)}
+        />
+      )}
     </div>
   );
 }

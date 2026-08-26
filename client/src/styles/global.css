@@ -689,6 +689,9 @@ button:disabled {
 }
 .msg__bubblewrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
 }
 .burnfx {
   position: absolute;
@@ -799,14 +802,12 @@ button:disabled {
 /* ── 焚毁倒计时 ── */
 .burn {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+  display: block;
+  width: 100%; /* 与气泡等宽 */
   height: 3px;
-  min-width: 52px;
   background: rgba(255, 176, 32, 0.14);
   border-radius: 2px;
-  overflow: hidden;
+  overflow: visible;
 }
 .burn__bar {
   position: absolute;
@@ -1034,6 +1035,54 @@ button:disabled {
 }
 
 /* ── 媒体查看器 Lightbox ── */
+/* ── 确认框 ── */
+.confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(2, 5, 4, 0.85);
+  backdrop-filter: blur(4px);
+  animation: gate-in 0.18s ease both;
+}
+.confirm__box {
+  max-width: 380px;
+  width: 100%;
+  padding: 1.3rem 1.4rem;
+  background: rgba(13, 21, 19, 0.98);
+  border: 1px solid rgba(255, 66, 92, 0.35);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), var(--glow-danger);
+}
+.confirm__title {
+  margin: 0 0 0.6rem;
+  color: var(--danger);
+  text-shadow: var(--glow-danger);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+.confirm__msg {
+  margin: 0 0 1.2rem;
+  color: var(--fg-dim);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.confirm__actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+.confirm__danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  text-shadow: var(--glow-danger);
+  background: rgba(255, 66, 92, 0.08);
+}
+
 .lightbox {
   position: fixed;
   inset: 0;
