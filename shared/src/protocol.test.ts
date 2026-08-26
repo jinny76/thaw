@@ -18,7 +18,7 @@ describe('shared protocol', () => {
   });
 
   it('exposes sane constants', () => {
-    expect(DEFAULT_TTL_SECONDS).toBe(30);
+    expect(DEFAULT_TTL_SECONDS).toBe(300);
     expect(CHUNK_SIZE).toBe(65536);
     expect(ROOM_ID_LENGTH).toBe(9);
   });

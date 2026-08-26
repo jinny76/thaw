@@ -1,7 +1,7 @@
 // 全局常量 —— 客户端与服务器共享的协议参数。
 
 /** 默认消息存活时长（秒）。到期后从收发双方内存与界面抹除。 */
-export const DEFAULT_TTL_SECONDS = 30;
+export const DEFAULT_TTL_SECONDS = 300;
 
 /** 富媒体分块大小（字节），64 KiB。 */
 export const CHUNK_SIZE = 64 * 1024;
