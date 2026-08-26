@@ -296,7 +296,7 @@ export function useChat(mode: Mode): ChatController {
             reassemblersRef.current.delete(frame.msgId);
             if (blob) {
               const url = URL.createObjectURL(blob);
-              // TTL 沿用发送方 meta 里的值（已含视频时长+30s）；此刻起算。
+              // TTL 沿用发送方 meta 里的值（已含视频/音频时长+默认TTL）；此刻起算。
               const readyAt = Date.now();
               setMessages((prev) =>
                 prev.map((m) =>
@@ -468,7 +468,7 @@ export function useChat(mode: Mode): ChatController {
     const mediaKind = classifyKind(blob.type || 'application/octet-stream');
     const localUrl = URL.createObjectURL(blob);
 
-    // 预读视频/音频时长 → TTL = 时长 + 30s（保证对方能看完再留）。
+    // 预读视频/音频时长 → TTL = 时长 + 默认TTL（播放期间不倒计时，播完仍留完整设定时长）。
     const dur =
       mediaKind === 'video' || mediaKind === 'audio'
         ? await readMediaDuration(localUrl, mediaKind)

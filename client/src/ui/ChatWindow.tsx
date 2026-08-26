@@ -67,22 +67,34 @@ export function ChatWindow({ mode }: { mode: Mode }) {
     };
   }, []);
 
-  // 只在「新消息到达」且用户已在底部附近时滚到底；焚毁消失不滚动。
+  // 只在「新消息到达」且用户此前已贴在底部时滚到底；焚毁消失/翻历史不打扰。
   const endRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const prevLenRef = useRef(0);
+  // 持续跟踪「是否贴底」——必须在新消息撑高 DOM 之前就算好，
+  // 否则插入后 scrollHeight 已变大会误判为「不在底部」而不滚动。
+  const atBottomRef = useRef(true);
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const onScroll = () => {
+      atBottomRef.current =
+        body.scrollHeight - body.scrollTop - body.clientHeight < 120;
+    };
+    onScroll(); // 初始判定
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, []);
+
   const msgCount = chat.messages.length;
   useEffect(() => {
     const grew = msgCount > prevLenRef.current;
     prevLenRef.current = msgCount;
     if (!grew) return; // 消息减少（焚毁）→ 不滚动
-    const body = bodyRef.current;
-    if (body) {
-      // 用户本就在底部附近才自动滚（在上面翻历史时不打扰）。
-      const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 120;
-      if (!nearBottom) return;
-    }
+    // 用「消息插入前」记录的贴底状态判断，避免新消息撑高后误判。
+    if (!atBottomRef.current) return;
     endRef.current?.scrollIntoView({ block: 'end' });
+    atBottomRef.current = true; // 滚到底后仍视作贴底
   }, [msgCount]);
 
   // 截屏贴图：从剪贴板取 image/* 直接走图片通道。

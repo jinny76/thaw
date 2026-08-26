@@ -1,8 +1,5 @@
-// 读取视频/音频时长（秒）。用于动态 TTL：视频消息存活 = 时长 + 缓冲。
+// 读取视频/音频时长（秒）。用于动态 TTL：视频/音频消息存活 = 时长 + 默认 TTL。
 // 读不出时长（编码不支持等）则返回 null，回退默认 TTL。
-
-/** 视频/音频消息的额外缓冲秒数（看完之后再留这么久）。 */
-export const MEDIA_TTL_BUFFER_SECONDS = 30;
 
 /** 从 ObjectURL 读取时长（秒）。失败返回 null。 */
 export function readMediaDuration(url: string, kind: 'video' | 'audio'): Promise<number | null> {
@@ -29,7 +26,8 @@ export function readMediaDuration(url: string, kind: 'video' | 'audio'): Promise
 
 /**
  * 计算富媒体消息的 TTL（秒）。
- * 视频/音频：时长 + 缓冲（保证能看完再留 30s）；否则用默认 TTL。
+ * 视频/音频：时长 + 默认 TTL（保证播放期间不倒计时，播完仍留完整设定时长）；
+ * 其他类型直接用默认 TTL。这样所有消息的「可用停留时间」与设定一致。
  */
 export function computeMediaTtl(
   kind: string,
@@ -37,7 +35,7 @@ export function computeMediaTtl(
   defaultTtl: number,
 ): number {
   if ((kind === 'video' || kind === 'audio') && durationSec !== null) {
-    return Math.ceil(durationSec) + MEDIA_TTL_BUFFER_SECONDS;
+    return Math.ceil(durationSec) + defaultTtl;
   }
   return defaultTtl;
 }
