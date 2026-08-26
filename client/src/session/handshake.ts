@@ -10,7 +10,7 @@ import {
   deriveSharedBits,
   type EcdhKeyPair,
 } from '../crypto/ecdh.js';
-import { deriveSessionKey } from '../crypto/hkdf.js';
+import { deriveSessionKey, deriveRatchetRoot } from '../crypto/hkdf.js';
 import { deriveAuthKey } from '../crypto/kdf.js';
 import { computeAuthTag, verifyAuthTag } from '../crypto/auth.js';
 import { EcdhCrypto } from '../crypto/ecdh-crypto.js';
@@ -44,6 +44,7 @@ export class Handshake {
   private myTag = '';
   private peerTag: string | null = null;
   private sessionKey: CryptoKey | null = null;
+  private ratchetRoot: Uint8Array | null = null;
   private authKey: Uint8Array | null = null;
   private resolveOutcome!: (o: HandshakeOutcome) => void;
   private outcome = new Promise<HandshakeOutcome>((res) => {
@@ -97,6 +98,7 @@ export class Handshake {
       await importPublicKey(this.peerPub),
     );
     this.sessionKey = await deriveSessionKey(shared, this.deps.roomId);
+    this.ratchetRoot = await deriveRatchetRoot(shared, this.deps.roomId);
 
     const { aPub, bPub } = this.orderedPubs();
     this.myTag = await computeAuthTag(this.authKey, aPub, bPub, this.deps.roomId);
@@ -126,7 +128,7 @@ export class Handshake {
     this.status = 'done';
     this.resolveOutcome({
       status: 'done',
-      crypto: new EcdhCrypto(this.sessionKey),
+      crypto: new EcdhCrypto(this.sessionKey, this.ratchetRoot!, this.deps.slot),
       sessionToken: randomId(16),
     });
   }

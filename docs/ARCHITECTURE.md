@@ -50,7 +50,7 @@
 2. A 输入**进入口令**(自选,或前端生成一段高熵口令供 A 复制)。
 3. 前端本地 `key = KDF(口令, salt=房间号)`(见 §3),密钥**只存在内存**。
 4. A 向服务器发 `create_room{roomId}`(**不含口令、不含 key**)。服务器登记 `roomId → {A: conn}`,标记等待 B。
-5. A 得到链接 `https://thaw.kingfisher.live/123456789`,把**口令带外**发给 B。
+5. A 得到链接 `https://your-domain.example/123456789`,把**口令带外**发给 B。
 
 ### 2.2 受邀方进入(B)
 1. B 打开链接 → 前端从路径取 `roomId`,向服务器 `join_room{roomId}`。

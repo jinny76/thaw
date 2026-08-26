@@ -10,9 +10,9 @@ const SERVER_PORT = 45187;
 // 明确不引入 vite-plugin-pwa / Service Worker（见 ARCHITECTURE §7.1）。
 
 // 允许通过反代访问的域名（vite 会校验 Host 头，否则拦截）。
-// 生产域名 + 环境变量 THAW_ALLOWED_HOSTS（逗号分隔）追加。
+// 生产域名不硬编码进源码——部署时用环境变量 THAW_ALLOWED_HOSTS（逗号分隔）指定。
+// 本地开发默认放行 localhost / 127.0.0.1。
 const allowedHosts = [
-  'thaw.kingfisher.live',
   'localhost',
   '127.0.0.1',
   ...(process.env.THAW_ALLOWED_HOSTS?.split(',').map((h) => h.trim()).filter(Boolean) ?? []),

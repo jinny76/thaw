@@ -11,7 +11,8 @@ async function sharedPair(): Promise<[EcdhCrypto, EcdhCrypto]> {
   const b = await generateEcdhKeyPair();
   const shared = await deriveSharedBits(a.privateKey, b.publicKey);
   const key = await deriveSessionKey(shared, 'room');
-  return [new EcdhCrypto(key), new EcdhCrypto(key)];
+  const root = new Uint8Array(32); // 媒体不走棘轮
+  return [new EcdhCrypto(key, root, 'A'), new EcdhCrypto(key, root, 'B')];
 }
 
 let sender: EcdhCrypto;

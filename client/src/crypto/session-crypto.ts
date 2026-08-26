@@ -4,13 +4,15 @@
 export interface EncryptedPayload {
   nonce: string; // base64
   ciphertext: string; // base64
+  /** 棘轮序号（文字消息用，标识用哪一步的 messageKey）；富媒体不设。 */
+  seq?: number;
 }
 
 export interface SessionCrypto {
   /** 是否已建立安全会话（握手完成）。 */
   readonly ready: boolean;
-  /** 加密一段明文（含 AAD 绑定 msgId）。 */
-  encrypt(plaintext: string, aad: string): Promise<EncryptedPayload>;
+  /** 加密一段明文（含 AAD 绑定 msgId）。ratchet=false 走稳定密钥（控制消息）。 */
+  encrypt(plaintext: string, aad: string, ratchet?: boolean): Promise<EncryptedPayload>;
   /** 解密。失败抛错。 */
   decrypt(payload: EncryptedPayload, aad: string): Promise<string>;
 }
@@ -22,7 +24,11 @@ export interface SessionCrypto {
 export class PlaintextCrypto implements SessionCrypto {
   readonly ready = true;
 
-  async encrypt(plaintext: string, _aad: string): Promise<EncryptedPayload> {
+  async encrypt(
+    plaintext: string,
+    _aad: string,
+    _ratchet = true,
+  ): Promise<EncryptedPayload> {
     return { nonce: '', ciphertext: btoa(unescape(encodeURIComponent(plaintext))) };
   }
 

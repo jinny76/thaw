@@ -103,8 +103,9 @@ export function useChat(mode: Mode): ChatController {
         sessionTokenRef.current = outcome.sessionToken ?? null;
         dispatch({ type: 'SECURE' });
         // 握手完成 → 把本端昵称经 E2EE 发给对方（服务器看不到明文）。
+        // 昵称是控制消息，不走棘轮（ratchet=false，用稳定会话密钥）。
         void cryptoRef.current
-          .encrypt(mode.nickname, buildAad(mode.roomId, 'nick', 'nick'))
+          .encrypt(mode.nickname, buildAad(mode.roomId, 'nick', 'nick'), false)
           .then(({ nonce, ciphertext }) => {
             clientRef.current?.send({ type: 'nick', nonce, ciphertext });
           });
@@ -189,7 +190,7 @@ export function useChat(mode: Mode): ChatController {
         case 'msg': {
           try {
             const text = await cryptoRef.current.decrypt(
-              { nonce: frame.nonce, ciphertext: frame.ciphertext },
+              { nonce: frame.nonce, ciphertext: frame.ciphertext, seq: frame.seq },
               buildAad(mode.roomId, 'msg', frame.msgId),
             );
             const incoming: TextMessage = {
@@ -424,8 +425,8 @@ export function useChat(mode: Mode): ChatController {
     setMessages((prev) => [...prev, local]);
     void cryptoRef.current
       .encrypt(trimmed, buildAad(mode.roomId, 'msg', msgId))
-      .then(({ nonce, ciphertext }) => {
-        client.send({ type: 'msg', msgId, nonce, ciphertext, ttl: DEFAULT_TTL_SECONDS });
+      .then(({ nonce, ciphertext, seq }) => {
+        client.send({ type: 'msg', msgId, nonce, ciphertext, ttl: DEFAULT_TTL_SECONDS, seq });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

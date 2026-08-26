@@ -90,6 +90,8 @@ export interface MsgFrame {
   nonce: string; // base64
   ciphertext: string; // base64
   ttl: number; // 秒
+  /** 前向保密棘轮序号（标识用哪一步的 messageKey）。 */
+  seq?: number;
 }
 
 export interface MediaMetaFrame {
