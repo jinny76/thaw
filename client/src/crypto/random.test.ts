@@ -46,6 +46,17 @@ describe('crypto/random', () => {
     expect(generatePassphraseZh()).not.toBe(generatePassphraseZh()); // 随机
   });
 
+  it('中文房间号/口令内部词互不重复（不得重复）', () => {
+    // 词表为双字词，按每 2 字切分后应无重复项。
+    const splitWords = (s: string) => s.match(/.{2}/gu) ?? [];
+    for (let i = 0; i < 100; i++) {
+      const idWords = splitWords(generateRoomIdZh());
+      expect(new Set(idWords).size).toBe(idWords.length);
+      const passWords = splitWords(generatePassphraseZh());
+      expect(new Set(passWords).size).toBe(passWords.length);
+    }
+  });
+
   it('中文房间号匹配路由正则（可作为 roomId）', () => {
     const ROOMID_RE = /^(?:\d{9}|[一-鿿]{2,16})$/;
     for (let i = 0; i < 10; i++) {

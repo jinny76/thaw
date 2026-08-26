@@ -4,15 +4,26 @@
 import { ROOM_ID_LENGTH, PASSPHRASE_MIN_LENGTH } from '@thaw/shared';
 import { ZH_WORDS } from './wordlist-zh.js';
 
-/** 从数组无偏随机取一个元素（拒绝采样消除 mod 偏置）。 */
-function pickUnbiased<T>(arr: readonly T[]): T {
-  const n = arr.length;
-  const limit = 256 - (256 % n);
-  const buf = new Uint8Array(1);
+/** 无偏取一个 [0,n) 的随机整数（拒绝采样消除 mod 偏置，n 可任意大）。 */
+function randIndex(n: number): number {
+  // 用 16 位随机数覆盖 n ≤ 65536 的词表；拒绝落在最后一段的取值以消偏。
+  const limit = 65536 - (65536 % n);
+  const buf = new Uint16Array(1);
   for (;;) {
     crypto.getRandomValues(buf);
-    if (buf[0]! < limit) return arr[buf[0]! % n]!;
+    if (buf[0]! < limit) return buf[0]! % n;
   }
+}
+
+/**
+ * 无放回随机取 n 个互不相同的元素（拒绝采样保证无偏，Set 保证不重复）。
+ * n 会被夹到数组长度上限。词表远大于 n（704 ≫ 5），碰撞极少、期望迭代次数近 n。
+ */
+function pickDistinct<T>(arr: readonly T[], n: number): T[] {
+  const count = Math.min(n, arr.length);
+  const picked = new Set<number>();
+  while (picked.size < count) picked.add(randIndex(arr.length));
+  return [...picked].map((i) => arr[i]!);
 }
 
 /** 生成 9 位随机数字房间号（无前导偏置，拒绝采样）。 */
@@ -68,20 +79,16 @@ export function defaultNickname(): string {
   return `神秘人${randomDigits(6)}`;
 }
 
-/** 生成中文房间号：3 个随机中文词拼接（如「青山流云寒江」）。可读、易念。 */
+/** 生成中文房间号：3 个互不相同的随机中文词拼接（如「青山流云寒江」）。可读、易念。 */
 export function generateRoomIdZh(words = 3): string {
-  let out = '';
-  for (let i = 0; i < words; i++) out += pickUnbiased(ZH_WORDS);
-  return out;
+  return pickDistinct(ZH_WORDS, words).join('');
 }
 
 /**
- * 生成中文口令：默认 5 个随机中文词直接拼接（如「青山流云寒江孤舟残雪」）。
- * 纯汉字无分隔符——好输入、不会因符号打错。5 词 ≈ 40 bit 熵，配 Argon2id
+ * 生成中文口令：默认 5 个互不相同的随机中文词直接拼接（如「青山流云寒江孤舟残雪」）。
+ * 纯汉字无分隔符——好输入、不会因符号打错。5 词无放回 ≈ 47 bit 熵，配 Argon2id
  * 抗爆破足够；中文好记、好带外传递。
  */
 export function generatePassphraseZh(words = 5): string {
-  let out = '';
-  for (let i = 0; i < words; i++) out += pickUnbiased(ZH_WORDS);
-  return out;
+  return pickDistinct(ZH_WORDS, words).join('');
 }
