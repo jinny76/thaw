@@ -1,0 +1,42 @@
+{
+  "name": "thaw",
+  "version": "0.1.0",
+  "private": true,
+  "description": "雪泥 · Thaw — 端到端加密、阅后即焚的即时聊天",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "start": "concurrently -n server,client -c green,cyan \"npm:start:server\" \"npm:start:client\"",
+    "start:client": "npm run preview --workspace client",
+    "start:server": "npm run start --workspace server",
+    "serve": "npm run build && npm run start",
+    "build": "npm run build --workspace shared && npm run build --workspace client && npm run typecheck --workspace server",
+    "typecheck": "npm run typecheck --workspace shared && npm run typecheck --workspace client && npm run typecheck --workspace server",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "@vitest/coverage-v8": "^2.1.2",
+    "concurrently": "^9.0.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.2"
+  }
+}
