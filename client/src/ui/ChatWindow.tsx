@@ -32,10 +32,20 @@ export function ChatWindow({ mode }: { mode: Mode }) {
 
   // 拦截移动端边缘返回手势/浏览器返回，防误触退出（退出即焚、无法重进）。
   const [confirmExit, setConfirmExit] = useState(false);
+  const [copiedInfo, setCopiedInfo] = useState(false);
   const inRoom =
     chat.session.phase !== 'closed' && chat.session.phase !== 'error';
   const onBackAttempt = useCallback(() => setConfirmExit(true), []);
   const { release } = useBackGuard(inRoom, onBackAttempt);
+
+  // 退出前补救：复制房间信息（链接 + 动态口令，不含前缀）给对方。
+  const copyRoomInfo = useCallback(() => {
+    if (mode.kind !== 'create' || !mode.dynPass) return;
+    const link = `${window.location.origin}/${mode.roomId}`;
+    void navigator.clipboard?.writeText(`${link}\n口令: ${mode.dynPass}`);
+    setCopiedInfo(true);
+    setTimeout(() => setCopiedInfo(false), 1600);
+  }, [mode]);
   // 隐写水印标识（房间号后几位，仅本会话可见）。
   const wmLabel = useMemo(() => `THAW·${mode.roomId.slice(-4)}`, [mode.roomId]);
 
@@ -155,10 +165,17 @@ export function ChatWindow({ mode }: { mode: Mode }) {
       {confirmExit && (
         <ConfirmDialog
           title="退出聊天室？"
-          message="退出后本端所有消息立即焚毁，房间可能销毁、无法重新进入。确定要退出吗？"
+          message="退出后本端消息立即焚毁，房间可能销毁、无法重进。"
           confirmText="退出并焚毁"
           cancelText="留在此处"
           danger
+          extra={
+            mode.kind === 'create' && mode.dynPass ? (
+              <button type="button" className="confirm__copy" onClick={copyRoomInfo}>
+                {copiedInfo ? '✓ 已复制房间信息' : '⧉ 复制房间信息（发给对方）'}
+              </button>
+            ) : undefined
+          }
           onConfirm={() => {
             setConfirmExit(false);
             chat.leave();

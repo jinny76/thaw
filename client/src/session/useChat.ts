@@ -21,7 +21,14 @@ import { OutgoingTransfer, classifyKind } from '../media/transfer.js';
 import { readMediaDuration, computeMediaTtl } from '../media/duration.js';
 
 export type Mode =
-  | { kind: 'create'; roomId: string; passphrase: string; nickname: string }
+  | {
+      kind: 'create';
+      roomId: string;
+      passphrase: string;
+      nickname: string;
+      /** 发给对方的动态口令（不含前缀），供退出前补救复制。 */
+      dynPass?: string;
+    }
   | { kind: 'join'; roomId: string; passphrase: string; nickname: string };
 
 export interface ChatController {

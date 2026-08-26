@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { generateRoomId, generatePassphrase, randomId } from './random.js';
+import {
+  generateRoomId,
+  generatePassphrase,
+  generateRoomIdZh,
+  generatePassphraseZh,
+  randomId,
+} from './random.js';
 
 describe('crypto/random', () => {
   it('generateRoomId returns 9 digits', () => {
@@ -22,6 +28,27 @@ describe('crypto/random', () => {
 
   it('generatePassphrase honors a larger requested length', () => {
     expect(generatePassphrase(32).length).toBe(32);
+  });
+
+  it('generateRoomIdZh 生成纯中文房间号', () => {
+    for (let i = 0; i < 20; i++) {
+      const r = generateRoomIdZh();
+      expect(r).toMatch(/^[一-鿿]+$/);
+      expect(r.length).toBeGreaterThanOrEqual(4); // 至少 3 词 × 2 字
+    }
+  });
+
+  it('generatePassphraseZh 生成中文词组口令，词间用·分隔', () => {
+    const p = generatePassphraseZh();
+    expect(p).toMatch(/^[一-鿿]+(·[一-鿿]+)+$/);
+    expect(generatePassphraseZh()).not.toBe(generatePassphraseZh()); // 随机
+  });
+
+  it('中文房间号匹配路由正则（可作为 roomId）', () => {
+    const ROOMID_RE = /^(?:\d{9}|[一-鿿]{2,16})$/;
+    for (let i = 0; i < 10; i++) {
+      expect(ROOMID_RE.test(generateRoomIdZh())).toBe(true);
+    }
   });
 
   it('randomId returns hex of expected length', () => {

@@ -2,6 +2,18 @@
 // 完整 crypto 模块（KDF/ECDH/AEAD）在 phase 5 落地；这两个生成器在 phase 3 即需。
 
 import { ROOM_ID_LENGTH, PASSPHRASE_MIN_LENGTH } from '@thaw/shared';
+import { ZH_WORDS } from './wordlist-zh.js';
+
+/** 从数组无偏随机取一个元素（拒绝采样消除 mod 偏置）。 */
+function pickUnbiased<T>(arr: readonly T[]): T {
+  const n = arr.length;
+  const limit = 256 - (256 % n);
+  const buf = new Uint8Array(1);
+  for (;;) {
+    crypto.getRandomValues(buf);
+    if (buf[0]! < limit) return arr[buf[0]! % n]!;
+  }
+}
 
 /** 生成 9 位随机数字房间号（无前导偏置，拒绝采样）。 */
 export function generateRoomId(): string {
@@ -54,4 +66,21 @@ export function randomDigits(n: number): string {
 /** 默认昵称：神秘人 + 6 位随机数字。 */
 export function defaultNickname(): string {
   return `神秘人${randomDigits(6)}`;
+}
+
+/** 生成中文房间号：3 个随机中文词拼接（如「青山流云寒江」）。可读、易念。 */
+export function generateRoomIdZh(words = 3): string {
+  let out = '';
+  for (let i = 0; i < words; i++) out += pickUnbiased(ZH_WORDS);
+  return out;
+}
+
+/**
+ * 生成中文口令：默认 4 个随机中文词（diceware 风格，如「青山·流云·寒江·孤舟」）。
+ * 4 词 ≈ 32 bit 熵，配 Argon2id 抗爆破足够；中文好记、好带外传递。
+ */
+export function generatePassphraseZh(words = 4): string {
+  const out: string[] = [];
+  for (let i = 0; i < words; i++) out.push(pickUnbiased(ZH_WORDS));
+  return out.join('·');
 }

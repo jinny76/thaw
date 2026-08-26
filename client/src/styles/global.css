@@ -375,6 +375,30 @@ button:disabled {
 .gate__facts dd {
   margin: 0;
   word-break: break-all;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+}
+.gate__val {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.gate__gen {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+.gate__gen button {
+  min-height: 26px;
+  padding: 0 0.5rem;
+  font-size: 0.68rem;
+  color: var(--fg-dim);
+  border-color: var(--fg-faint);
+}
+.gate__gen button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .gate__link {
   color: var(--cyan);
@@ -1071,10 +1095,25 @@ button:disabled {
   font-size: 0.88rem;
   line-height: 1.6;
 }
+.confirm__extra {
+  margin-bottom: 0.8rem;
+}
+.confirm__copy {
+  width: 100%;
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.06);
+  font-size: 0.85rem;
+}
 .confirm__actions {
   display: flex;
   gap: 0.6rem;
   justify-content: flex-end;
+}
+.confirm__actions button {
+  flex: 1;
+  padding: 0 0.6rem;
+  font-size: 0.85rem;
 }
 .confirm__danger {
   border-color: var(--danger);
