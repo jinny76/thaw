@@ -37,8 +37,13 @@ export const HANDSHAKE_FAIL_LIMIT = 5;
 /** 握手失败限速窗口（毫秒）。 */
 export const HANDSHAKE_FAIL_WINDOW_MS = 60_000;
 
-/** KDF 迭代次数（PBKDF2）。 */
+/** KDF 迭代次数（PBKDF2 回退用）。 */
 export const KDF_ITERATIONS = 600_000;
+
+/** Argon2id 参数（主 KDF，抗 GPU 爆破）。 */
+export const ARGON2_MEMORY_KIB = 64 * 1024; // 64 MiB
+export const ARGON2_ITERATIONS = 3;
+export const ARGON2_PARALLELISM = 1;
 
 /** 同一房间并发富媒体消息数上限（接收端防护）。 */
 export const MAX_CONCURRENT_MEDIA = 4;

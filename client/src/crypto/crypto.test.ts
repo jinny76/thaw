@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveAuthKey } from './kdf.js';
+import { deriveAuthKey, lastKdfAlgo } from './kdf.js';
 import {
   generateEcdhKeyPair,
   exportPublicKey,
@@ -37,6 +37,18 @@ describe('KDF (deriveAuthKey)', () => {
     const a = await deriveAuthKey('same-pass', '123456789');
     const b = await deriveAuthKey('same-pass', '987654321');
     expect(bytesToBase64(a)).not.toBe(bytesToBase64(b));
+  });
+
+  it('实际使用 Argon2id（WASM）而非回退到 PBKDF2', async () => {
+    await deriveAuthKey('some-pass', '123456789');
+    expect(lastKdfAlgo()).toBe('argon2id');
+  });
+
+  it('Argon2id 派生结果是确定性的 32 字节', async () => {
+    const k = await deriveAuthKey('deterministic', '123456789');
+    expect(k.length).toBe(32);
+    const k2 = await deriveAuthKey('deterministic', '123456789');
+    expect(bytesToBase64(k)).toBe(bytesToBase64(k2));
   });
 });
 

@@ -74,7 +74,7 @@ deploy/   # nginx.conf 部署示例（静态零缓存 + 反爬 + WS 反代）
 
 ## 加密方案
 
-- KDF：PBKDF2-HMAC-SHA256（600k 迭代，salt = SHA-256("thaw:v1:"+房间号)）。可后续换 Argon2id/WASM。
+- KDF：**Argon2id**（WASM，m=64MiB · t=3 · p=1，抗 GPU/ASIC 爆破），salt = SHA-256("thaw:v1:"+房间号)。WASM 不可用时回退 PBKDF2-HMAC-SHA256（600k 迭代）。
 - 密钥交换：X25519 的等价实现 ECDH P-256（Web Crypto 原生、全浏览器支持）。
 - 会话密钥：HKDF-SHA256 派生，绑定房间号。
 - 消息加密：AES-256-GCM，递增计数器 nonce，AAD 绑定 roomId+类型+msgId。

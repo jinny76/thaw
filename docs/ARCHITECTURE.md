@@ -99,9 +99,7 @@
 4. 全部通过 → 进入聊天室,会话密钥 `sk` 只存两端内存。
 5. **重连令牌**:握手成功时两端各生成并记住一个 `sessionToken`(随机、仅内存),用于 §2.3 断线重连恢复——**光有 roomId+口令无法接管会话,必须持 token**(堵住房间劫持)。
 
-- **KDF 分两步落地(已定案)**:整条握手/加密/验证链路用**浏览器原生 Web Crypto 即可**(X25519 ECDH、AES-256-GCM、HKDF、HMAC、`getRandomValues` 全部原生支持)——**WASM 不是 E2EE 的地基**。唯一缺口是 Web Crypto **没有 Argon2id**:
-  - **M3**:KDF 先用原生 `PBKDF2-HMAC-SHA256`(迭代 ≥600k)把 E2EE 全链路跑通,不引 WASM。
-  - **M3.5**:仅把 `crypto/kdf.ts` 这一个模块换成 **Rust(`argon2` crate)→ `wasm-pack`** 编译的 Argon2id(`m=64MiB, t=3, p=1`),其余仍走 Web Crypto。改动面极小,是给口令抗爆破"加固"的一块,正是 PRD「加密如有必要可用 Rust 写 WASM」所指。
+- **KDF 已落地 Argon2id(WASM)**:整条握手/加密/验证链路用浏览器原生 Web Crypto(X25519 ECDH、AES-256-GCM、HKDF、HMAC),唯一缺口 Argon2id 由 **`hash-wasm`**(预编译审计过的 WASM)提供,参数 `m=64MiB, t=3, p=1`,抗 GPU/ASIC 爆破。WASM 内联进 bundle(约 +45KB),无单独 `.wasm` 资源(顺带规避静态零缓存的重下问题)。若 WASM 加载/执行失败,`kdf.ts` 自动回退 `PBKDF2-HMAC-SHA256`(迭代 ≥600k)保证功能可用。接口 `deriveAuthKey(passphrase, roomId)` 不变,加密链路其余部分零改动。
 - 有了 ECDH,即便口令较弱,离线爆破 `authKey` 也只能**冒充**发起一次在线握手,无法回溯解密已建立会话的历史消息(前向保密)。仍应配合 §3.4 高熵口令。
 
 ### 3.2 消息加密(对称)
@@ -379,8 +377,8 @@ src/
 | **M0 脚手架** | §8、§8.6 | monorepo(前端 Vite+TS / 后端 Node+TS)、ESLint/Prettier、Vitest/Playwright、Husky、CI 骨架。**先立规范再写业务。** |
 | M1 通道跑通 | §1、§2、§4.1 | React + Node WS,创建/加入房间,明文文字双人实时聊天 + 对应单测/集成测试 |
 | M2 焚毁机制 | §5、§7 | 服务器零存储 + 5min 定时销毁 + 退出即焚 + **「零留痕」验证测试** |
-| M3 端到端加密 | §3、§4.2、§2.2、§2.5 | ECDH+口令认证握手、会话密钥加密、握手限速、重连 token、服务器只见密文;**KDF 用原生 PBKDF2** + crypto 单测 ≥90% |
-| **M3.5 KDF 加固** | §3.1 | 仅 `crypto/kdf.ts` 换成 Rust→WASM 的 **Argon2id**;wasm-pack + Vite 构建流水线 |
+| M3 端到端加密 | §3、§4.2、§2.2、§2.5 | ECDH+口令认证握手、会话密钥加密、握手限速、重连 token、服务器只见密文 + crypto 单测 ≥90% |
+| **M3.5 KDF 加固 ✅** | §3.1 | `crypto/kdf.ts` 用 `hash-wasm` 的 **Argon2id**(WASM),PBKDF2 回退兜底 |
 | M4 富媒体 | §6 | 图片/语音/文件分块 E2EE、截屏贴图、拖拽 + 分块重组测试 |
 | M5 UI 打磨 | §8.5 | 暗网/间谍片风格 UI、雪化动效、低调模式、移动端适配 + 组件/E2E 测试 |
 
