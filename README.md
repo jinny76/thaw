@@ -55,8 +55,23 @@ deploy/   # nginx.conf 部署示例（静态零缓存 + 反爬 + WS 反代）
 
 - 静态资源 `Cache-Control: no-store` —— 本地不留任何 app 文件（尤其 JS）。
 - `X-Robots-Tag: noindex,nofollow,noarchive` + `robots.txt` —— 不被搜索引擎/爬虫收录。
-- `/ws` 反代到 Node；关闭 access_log（不记录含 roomId 的 URL）。
-- 可选总闸：服务器设 `THAW_ALLOW_PROCESS_KILL=1` 时，恐慌热键才升级为关停整个进程（仅限你独占部署的单圈子场景）；默认只销毁本房间。
+- `/ws` 反代到 Node，须传 `X-Forwarded-For`（配置已含）；关闭 access_log（不记录含 roomId 的 URL）。
+
+### 后端环境变量
+
+| 变量 | 作用 |
+|------|------|
+| `THAW_PORT` | 后端 WS 端口（默认 45187）|
+| `THAW_TRUST_PROXY=1` | **反代部署必设**。信任 `X-Forwarded-For` 取真实 IP，否则 IP 限流对所有人都算成 nginx 的 127.0.0.1 而失效 |
+| `THAW_ALLOWED_ORIGINS` | 逗号分隔的 Origin 白名单（如 `https://thaw.kingfisher.live`），防跨站 WS 劫持（CSWSH）。留空则不校验（仅本地开发）|
+| `THAW_ALLOW_PROCESS_KILL=1` | 恐慌热键升级为关停整个进程（仅限独占单圈子部署）；默认只销毁本房间 |
+
+### DoS / 滥用防护（内置，针对小众低频场景，阈值偏紧）
+
+- 单 IP 并发连接 ≤ 6；建房 ≤ 3 次/分钟；活跃房间 ≤ 3
+- 单帧 ≤ 512 KB；帧频率 ≤ 80 帧/秒；60s 无 pong 踢死僵尸连接
+- 握手失败 5 次/分钟 → 销毁房间（防口令在线爆破）
+- 阈值定义在 `server/src/ratelimit.ts`，可按需调整
 
 ## 安全边界（诚实说明）
 

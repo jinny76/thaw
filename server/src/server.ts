@@ -9,21 +9,35 @@ import {
   type ServerToClientFrame,
 } from '@thaw/shared';
 import { RoomManager, type Peer } from './rooms.js';
+import {
+  IpLimiter,
+  FrameRateCounter,
+  MAX_FRAME_BYTES,
+  HEARTBEAT_INTERVAL_MS,
+} from './ratelimit.js';
+import { realIp, checkOrigin } from './net.js';
 
 /** 是否允许恐慌热键真正关停进程（默认否，只关本房间）。 */
 const ALLOW_PROCESS_KILL = process.env.THAW_ALLOW_PROCESS_KILL === '1';
 
 interface WsPeer extends Peer {
   ws: WebSocket;
+  ip: string;
+  frames: FrameRateCounter;
+  /** 本连接是否已占用一个活跃房间名额（用于离开时释放）。 */
+  countedRoom: boolean;
 }
 
 let peerSeq = 0;
 
-function wrapPeer(ws: WebSocket): WsPeer {
+function wrapPeer(ws: WebSocket, ip: string): WsPeer {
   const id = `p${++peerSeq}`;
   return {
     id,
     ws,
+    ip,
+    frames: new FrameRateCounter(),
+    countedRoom: false,
     send(data: string) {
       if (ws.readyState === WebSocket.OPEN) ws.send(data);
     },
@@ -48,28 +62,61 @@ export interface ThawServer {
 }
 
 export function createServer(port: number): ThawServer {
-  const wss = new WebSocketServer({ port });
-
-  const rooms = new RoomManager(undefined, (roomId, _reason) => {
-    // 房间销毁回调：无需额外动作（连接关闭在 destroy 流程外单独处理）。
-    void roomId;
+  const wss = new WebSocketServer({
+    port,
+    maxPayload: MAX_FRAME_BYTES, // ws 层直接拒绝超大帧
+    // 校验 Origin（防 CSWSH）；不通过则拒绝握手。
+    verifyClient: ({ req }, done) => {
+      if (!checkOrigin(req)) {
+        done(false, 403, 'forbidden origin');
+        return;
+      }
+      done(true);
+    },
   });
 
-  wss.on('connection', (ws: WebSocket) => {
-    const peer = wrapPeer(ws);
+  const rooms = new RoomManager(undefined, (roomId, _reason) => {
+    void roomId;
+  });
+  const limiter = new IpLimiter();
+
+  wss.on('connection', (ws: WebSocket, req) => {
+    const ip = realIp(req);
+    // 单 IP 并发连接上限。
+    if (!limiter.addConnection(ip)) {
+      ws.close(1008, 'too many connections');
+      return;
+    }
+    const peer = wrapPeer(ws, ip);
 
     ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
+      // 帧频率限制（防高频洪泛）。
+      if (peer.frames.hit()) {
+        ws.close(1008, 'rate limited');
+        return;
+      }
+      // 二次大小校验（maxPayload 已挡，双保险）。
+      const str = String(raw);
+      if (str.length > MAX_FRAME_BYTES) {
+        ws.close(1009, 'frame too large');
+        return;
+      }
       let frame: ClientToServerFrame;
       try {
-        frame = JSON.parse(String(raw)) as ClientToServerFrame;
+        frame = JSON.parse(str) as ClientToServerFrame;
       } catch {
         return; // 非法帧，忽略
       }
       handleFrame(peer, frame);
     });
 
+    ws.on('pong', () => {
+      (ws as { _thawPending?: boolean })._thawPending = false;
+    });
+
     ws.on('close', () => {
-      // 断线恢复的 token 宣告在 phase 6 接入；此阶段无 token（断开即释放槽位）。
+      limiter.removeConnection(ip);
+      if (peer.countedRoom) limiter.recordLeaveRoom(ip);
       const other = rooms.handleDisconnect(peer, null);
       if (other) sendFrame(other, { type: 'peer_left' });
     });
@@ -79,24 +126,55 @@ export function createServer(port: number): ThawServer {
     });
   });
 
-  function handleFrame(peer: Peer, frame: ClientToServerFrame): void {
+  // 心跳：定期 ping，未回 pong 的僵尸连接踢死。
+  const heartbeat = setInterval(() => {
+    for (const client of wss.clients) {
+      const ws = client as WebSocket & { _thawAlive?: boolean };
+      // 用 ws 自身标记（peer 在闭包里，这里用连接级近似）
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      if ((ws as { _thawPending?: boolean })._thawPending) {
+        ws.terminate();
+        continue;
+      }
+      (ws as { _thawPending?: boolean })._thawPending = true;
+      ws.ping();
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+  heartbeat.unref?.();
+
+  function handleFrame(peer: WsPeer, frame: ClientToServerFrame): void {
     switch (frame.type) {
       case 'create_room': {
+        // IP 建房速率 / 活跃房间数限制。
+        if (!limiter.canCreate(peer.ip)) {
+          sendFrame(peer, { type: 'room_unavailable', reason: 'rate_limited' });
+          return;
+        }
         const res = rooms.createRoom(frame.roomId, peer);
         if (!res.ok) {
           sendFrame(peer, { type: 'room_unavailable', reason: res.reason });
           return;
         }
+        limiter.recordCreate(peer.ip);
+        peer.countedRoom = true;
         sendFrame(peer, { type: 'room_state', roomId: frame.roomId, peers: 1, slot: res.slot });
         return;
       }
 
       case 'join_room': {
+        // IP 活跃房间数限制。
+        if (!peer.countedRoom && !limiter.recordJoin(peer.ip)) {
+          sendFrame(peer, { type: 'room_unavailable', reason: 'rate_limited' });
+          return;
+        }
         const res = rooms.joinRoom(frame.roomId, peer);
         if (!res.ok) {
+          // join 失败要回退刚占的名额（除非本就已计数）。
+          if (!peer.countedRoom) limiter.recordLeaveRoom(peer.ip);
           sendFrame(peer, { type: 'room_unavailable', reason: res.reason });
           return;
         }
+        peer.countedRoom = true;
         // 通知双方到齐（各自用自己真实的槽位，支持重进后槽位不固定）。
         sendFrame(peer, { type: 'room_state', roomId: frame.roomId, peers: 2, slot: res.slot });
         const other = rooms.getOtherPeer(peer);
