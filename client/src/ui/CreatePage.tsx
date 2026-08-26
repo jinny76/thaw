@@ -14,8 +14,9 @@ import { Avatar } from './Avatar.js';
 
 export function CreatePage() {
   const initialNick = useMemo(() => defaultNickname(), []);
-  const [roomId, setRoomId] = useState(() => generateRoomId());
-  const [passphrase, setPassphrase] = useState(() => generatePassphrase());
+  // 默认用中文（好记、好带外传）；可切换回数字/英文。
+  const [roomId, setRoomId] = useState(() => generateRoomIdZh());
+  const [passphrase, setPassphrase] = useState(() => generatePassphraseZh());
   const [prefix, setPrefix] = useState('');
   const [nickname, setNickname] = useState(initialNick);
   const [meetTime, setMeetTime] = useState('');

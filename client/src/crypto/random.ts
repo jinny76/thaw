@@ -76,11 +76,12 @@ export function generateRoomIdZh(words = 3): string {
 }
 
 /**
- * 生成中文口令：默认 4 个随机中文词（diceware 风格，如「青山·流云·寒江·孤舟」）。
- * 4 词 ≈ 32 bit 熵，配 Argon2id 抗爆破足够；中文好记、好带外传递。
+ * 生成中文口令：默认 5 个随机中文词直接拼接（如「青山流云寒江孤舟残雪」）。
+ * 纯汉字无分隔符——好输入、不会因符号打错。5 词 ≈ 40 bit 熵，配 Argon2id
+ * 抗爆破足够；中文好记、好带外传递。
  */
-export function generatePassphraseZh(words = 4): string {
-  const out: string[] = [];
-  for (let i = 0; i < words; i++) out.push(pickUnbiased(ZH_WORDS));
-  return out.join('·');
+export function generatePassphraseZh(words = 5): string {
+  let out = '';
+  for (let i = 0; i < words; i++) out += pickUnbiased(ZH_WORDS);
+  return out;
 }

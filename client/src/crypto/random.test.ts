@@ -38,9 +38,11 @@ describe('crypto/random', () => {
     }
   });
 
-  it('generatePassphraseZh 生成中文词组口令，词间用·分隔', () => {
+  it('generatePassphraseZh 生成纯汉字口令（无分隔符）', () => {
     const p = generatePassphraseZh();
-    expect(p).toMatch(/^[一-鿿]+(·[一-鿿]+)+$/);
+    expect(p).toMatch(/^[一-鿿]+$/); // 纯汉字，无 · 空格等
+    expect(p).not.toContain('·');
+    expect(p.length).toBeGreaterThanOrEqual(8); // 至少 5 词 × 2 字 = 10
     expect(generatePassphraseZh()).not.toBe(generatePassphraseZh()); // 随机
   });
 
