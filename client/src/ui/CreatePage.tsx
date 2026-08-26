@@ -189,7 +189,7 @@ export function CreatePage() {
       <p className="gate__hint">
         {'> 「房主入口」含口令(藏在 # 后不上网)，只发给你自己/存书签，打开即以房主身份进房。'}
       </p>
-      <div className="gate__actions">
+      <div className="gate__actions gate__actions--enter">
         <button
           type="button"
           className="primary"

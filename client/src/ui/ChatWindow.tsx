@@ -87,15 +87,17 @@ export function ChatWindow({ mode }: { mode: Mode }) {
   }, []);
 
   const msgCount = chat.messages.length;
+  const lastAuthor = chat.messages[msgCount - 1]?.author;
   useEffect(() => {
     const grew = msgCount > prevLenRef.current;
     prevLenRef.current = msgCount;
     if (!grew) return; // 消息减少（焚毁）→ 不滚动
-    // 用「消息插入前」记录的贴底状态判断，避免新消息撑高后误判。
-    if (!atBottomRef.current) return;
+    // 自己刚发的消息：无条件滚到底（是主动发送，理应看到）。
+    // 收到对方消息：仅当此前已贴底才滚，避免打断向上翻历史。
+    if (lastAuthor !== 'me' && !atBottomRef.current) return;
     endRef.current?.scrollIntoView({ block: 'end' });
     atBottomRef.current = true; // 滚到底后仍视作贴底
-  }, [msgCount]);
+  }, [msgCount, lastAuthor]);
 
   // 截屏贴图：从剪贴板取 image/* 直接走图片通道。
   const onPaste = (e: ClipboardEvent) => {

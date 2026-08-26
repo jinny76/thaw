@@ -1315,7 +1315,10 @@ button:disabled {
     font-size: 16px;
   }
   .gate {
-    padding: 2rem 0.9rem;
+    /* 内容多时从顶部排布（居中会把顶部内容顶出视口）；
+       底部留白给悬浮的「进入」按钮条，避免遮挡最后一段内容。 */
+    justify-content: flex-start;
+    padding: 2rem 0.9rem calc(4.4rem + env(safe-area-inset-bottom, 0px));
   }
   .statusbar {
     font-size: 0.68rem;
@@ -1331,6 +1334,17 @@ button:disabled {
   }
   .gate__actions button {
     flex: 1 1 auto;
+  }
+  /* 主操作「立即进入聊天室」悬浮固定到视口底部，进房无需滚动即可点。 */
+  .gate__actions--enter {
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+    margin: 0 -0.9rem;
+    padding: 0.7rem 0.9rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(4, 8, 7, 0.6), rgba(4, 8, 7, 0.96) 45%);
+    backdrop-filter: blur(6px);
+    border-top: 1px solid rgba(0, 255, 156, 0.15);
   }
 }
 
