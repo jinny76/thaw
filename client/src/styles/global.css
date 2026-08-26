@@ -923,6 +923,26 @@ button:disabled {
   animation: thaw-melt var(--dur-slow) ease-in forwards;
   color: var(--accent);
 }
+/* 焚毁时头像+名字与气泡一起消隐（否则气泡烧没了、人名却还留着）。 */
+.msg--burning .msg__head {
+  animation: thaw-fade var(--dur-slow) ease-in forwards;
+}
+@keyframes thaw-fade {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 0.3;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(-6px);
+  }
+}
 .msg--burning .burn {
   opacity: 0;
 }
