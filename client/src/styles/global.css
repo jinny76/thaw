@@ -406,7 +406,8 @@ button:disabled {
   min-height: 38px;
   color: var(--accent);
 }
-.gate__facts-input.is-bad {
+.gate__facts-input.is-bad,
+.gate__input.is-bad {
   border-color: var(--amber);
   color: var(--amber);
 }
@@ -818,8 +819,20 @@ button:disabled {
   color: #baffdf;
 }
 .msg__file {
+  /* 由 <button> 渲染（避免 <a href=blob> 导航退出聊天室），重置为链接外观 */
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
   color: var(--accent);
   text-decoration: none;
+}
+.msg__file:hover {
+  text-decoration: underline;
 }
 .msg__pending {
   color: var(--fg-dim);
@@ -1227,6 +1240,11 @@ button:disabled {
   max-width: 90vw;
 }
 .lightbox__dl {
+  /* 由 <button> 渲染（避免 <a href=blob> 导航），重置默认外观 */
+  appearance: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
   display: inline-block;
   margin-top: 0.8rem;
   color: var(--accent);

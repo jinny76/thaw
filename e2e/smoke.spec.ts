@@ -4,7 +4,7 @@ test('landing page loads with title and CTA', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/Thaw/);
   await expect(page.getByText(/见字如面/)).toBeVisible();
-  await expect(page.getByRole('button', { name: /创建加密房间/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /进入加密房间/ })).toBeVisible();
 });
 
 test('static assets are served no-store (本地不留 app 文件)', async ({ page }) => {

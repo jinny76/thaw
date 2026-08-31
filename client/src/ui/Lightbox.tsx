@@ -2,6 +2,7 @@
 // 纯 React + CSS，无第三方库。ESC / 点遮罩 / 点关闭按钮均可关闭。
 
 import { useEffect, useState } from 'react';
+import { downloadBlobUrl } from './download.js';
 
 export interface LightboxMedia {
   kind: 'image' | 'video';
@@ -38,9 +39,13 @@ export function Lightbox({ media, onClose }: { media: LightboxMedia; onClose: ()
         ) : videoError ? (
           <div className="lightbox__fallback">
             <p>{'> 此视频浏览器无法解码（可能是手机 HEVC/H.265 格式）。'}</p>
-            <a className="lightbox__dl" href={media.url} download={media.name}>
+            <button
+              type="button"
+              className="lightbox__dl"
+              onClick={() => void downloadBlobUrl(media.url, media.name)}
+            >
               ⬇ 下载后用本地播放器查看
-            </a>
+            </button>
           </div>
         ) : (
           <video

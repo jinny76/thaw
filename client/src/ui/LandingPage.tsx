@@ -1,10 +1,53 @@
-// 落地页：终端式打字机 + glitch logo + 创建房间入口 + 安全理念/免责声明。
+// 落地页：终端式打字机 + glitch logo + 统一进房入口 + 安全理念/免责声明。
+// 统一入口：填房间号 + 口令即可「进入」——房间不存在则创建、已存在则加入，
+// 用户无需区分「创建」还是「加入」。想要高熵随机号/口令可点「随机生成」进创建页。
 
+import { useMemo, useState, type FormEvent } from 'react';
 import { navigate } from './useRoute.js';
 import { useTypewriter } from './useTypewriter.js';
+import { ChatWindow } from './ChatWindow.js';
+import { defaultNickname } from '../crypto/random.js';
+import { Avatar } from './Avatar.js';
+
+// 合法房间号：9 位数字，或 2~16 个中文字符（与路由/创建页正则一致）。
+const ROOMID_RE = /^(?:\d{9}|[一-鿿]{2,16})$/;
 
 export function LandingPage() {
   const line = useTypewriter('> INITIALIZING SECURE CHANNEL...');
+  const initialNick = useMemo(() => defaultNickname(), []);
+
+  const [roomId, setRoomId] = useState('');
+  const [prefix, setPrefix] = useState('');
+  const [passphrase, setPassphrase] = useState('');
+  const [nickname, setNickname] = useState(initialNick);
+  const [entered, setEntered] = useState(false);
+
+  const roomIdOk = ROOMID_RE.test(roomId);
+  const canEnter = roomIdOk && passphrase.length > 0;
+  const finalNick = nickname.trim() || initialNick;
+  // 真实密钥 = 前缀 + 口令，前缀参与 KDF、永不上网。
+  const fullPassphrase = prefix + passphrase;
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (canEnter) setEntered(true);
+  };
+
+  if (entered) {
+    // 统一以 create 模式发起：服务器若报房间已占用，useChat 会自动改为 join，
+    // 于是「号+口令相符 → 直接进入同一房间」，创建者刷新重进也能重新握手。
+    return (
+      <ChatWindow
+        mode={{
+          kind: 'create',
+          roomId,
+          passphrase: fullPassphrase,
+          nickname: finalNick,
+          dynPass: passphrase, // 纯口令（不含前缀），供退出前补救复制给对方
+        }}
+      />
+    );
+  }
 
   return (
     <main className="gate gate--landing">
@@ -17,10 +60,78 @@ export function LandingPage() {
         {line}
         <span className="cursor">▋</span>
       </pre>
-      <button type="button" className="primary gate__cta" onClick={() => navigate('/create')}>
-        ▸ 创建加密房间
-      </button>
-      <p className="gate__hint">{'> 无需注册。创建房间后把口令带外发给对方即可。'}</p>
+
+      {/* ── 统一进房入口：填号+口令即进 ── */}
+      <form className="gate__form gate__enter" onSubmit={submit}>
+        <label className="gate__label" htmlFor="landing-room">
+          房间号（9 位数字 或 2~16 个中文）
+        </label>
+        <input
+          id="landing-room"
+          className={`mono gate__input${roomId && !roomIdOk ? ' is-bad' : ''}`}
+          type="text"
+          autoComplete="off"
+          maxLength={16}
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value.trim())}
+          placeholder="与对方约定的房间号"
+        />
+        {roomId && !roomIdOk && (
+          <p className="gate__warn">{'⚠ 房间号需为 9 位数字，或 2~16 个中文字'}</p>
+        )}
+        <label className="gate__label" htmlFor="landing-prefix">
+          默契前缀（可选，与对方私下约定）
+        </label>
+        <input
+          id="landing-prefix"
+          className="mono gate__input"
+          type="password"
+          autoComplete="off"
+          maxLength={64}
+          value={prefix}
+          onChange={(e) => setPrefix(e.target.value)}
+          placeholder="不来自 IM 的私下约定（可留空）"
+        />
+        <label className="gate__label" htmlFor="landing-pass">
+          口令（与对方带外约定一致）
+        </label>
+        <input
+          id="landing-pass"
+          className="mono gate__input"
+          type="password"
+          autoComplete="off"
+          maxLength={128}
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          placeholder="创建方带外发给你的口令"
+        />
+        <label className="gate__label" htmlFor="landing-nick">
+          昵称（可选，留空即用「{initialNick}」）
+        </label>
+        <span className="gate__nickrow">
+          <Avatar name={finalNick} size={36} />
+          <input
+            id="landing-nick"
+            className="mono gate__input"
+            type="text"
+            maxLength={40}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder={initialNick}
+          />
+        </span>
+        <div className="gate__actions gate__actions--enter">
+          <button type="submit" className="primary" disabled={!canEnter}>
+            ▸ 进入加密房间
+          </button>
+          <button type="button" onClick={() => navigate('/create')}>
+            随机生成号 / 口令
+          </button>
+        </div>
+      </form>
+      <p className="gate__hint">
+        {'> 房间不存在即自动创建、已存在即加入；号+口令相符即进同一房间。口令永不发往服务器。'}
+      </p>
 
       {/* ── 安全理念 ── */}
       <section className="creed">

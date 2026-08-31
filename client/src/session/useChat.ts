@@ -182,8 +182,13 @@ export function useChat(mode: Mode): ChatController {
           cryptoRef.current = new PlaintextCrypto();
           break;
         case 'room_unavailable':
-          // 受邀方先到、房间尚未开启 → 不报错，进入等待并定时重试 join。
-          if (mode.kind === 'join' && frame.reason === 'not_found') {
+          // 创建方发现房间号已被占用（对方或自己上一会话还在房内）→ 不报错，
+          // 直接以「加入」身份进同一房间。这让「创建即进入」在号+口令相符时无缝生效，
+          // 也让创建方刷新/重进后只要还有人在房内即可重新握手。
+          if (mode.kind === 'create' && frame.reason === 'room_taken') {
+            clientRef.current?.send({ type: 'join_room', roomId: mode.roomId });
+          } else if (mode.kind === 'join' && frame.reason === 'not_found') {
+            // 受邀方先到、房间尚未开启 → 不报错，进入等待并定时重试 join。
             dispatch({ type: 'WAITING_ROOM' });
             startJoinRetry();
           } else {

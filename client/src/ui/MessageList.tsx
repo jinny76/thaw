@@ -8,6 +8,7 @@ import { Avatar } from './Avatar.js';
 import { linkify } from './linkify.js';
 import { Lightbox, type LightboxMedia } from './Lightbox.js';
 import { BurnParticles } from './BurnParticles.js';
+import { downloadBlobUrl } from './download.js';
 
 /** 气泡包裹层：焚毁时测量尺寸并叠加燃烧粒子特效；燃尽条随气泡等宽。 */
 function Bubble({
@@ -120,9 +121,13 @@ export function MessageList({
                     ) : m.mediaKind === 'audio' ? (
                       <audio className="msg__audio" src={m.objectUrl} controls />
                     ) : (
-                      <a className="msg__file" href={m.objectUrl} download={m.name}>
+                      <button
+                        type="button"
+                        className="msg__file"
+                        onClick={() => void downloadBlobUrl(m.objectUrl!, m.name)}
+                      >
                         {`⬇ ${m.name}`}
-                      </a>
+                      </button>
                     )
                   ) : (
                     <span className="msg__pending">

@@ -1,20 +1,21 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 
 // 端到端：两个独立浏览器上下文模拟 A / B。
-// A 创建房间 → 取房间号+口令 → B 用同口令加入 → 握手 → 收发文字 → 零留痕断言。
+// A 用首页统一入口填号+口令进入（不存在则自动创建）→ B 用同号+口令加入 → 握手
+// → 收发文字 → 零留痕断言。
 
 async function createRoom(
   page: Page,
   nickname?: string,
 ): Promise<{ roomId: string; passphrase: string }> {
+  // 用一个本测试专属的房间号+口令，走首页统一入口（房间不存在 → 自动创建）。
+  const roomId = String(100_000_000 + Math.floor(Math.random() * 899_999_999));
+  const passphrase = `e2e-pass-${roomId}-abcXYZ`;
   await page.goto('/');
-  await page.getByRole('button', { name: /创建加密房间/ }).click();
-  // 创建页展示 9 位房间号与口令
-  const roomId = (await page.getByText(/^\d{9}$/).first().textContent())!.trim();
-  // 口令在 gate__pass
-  const passphrase = (await page.locator('.gate__pass').textContent())!.trim();
-  if (nickname) await page.locator('#nick').fill(nickname);
-  await page.getByRole('button', { name: /进入聊天室/ }).click();
+  await page.locator('#landing-room').fill(roomId);
+  await page.locator('#landing-pass').fill(passphrase);
+  if (nickname) await page.locator('#landing-nick').fill(nickname);
+  await page.getByRole('button', { name: /进入加密房间/ }).click();
   return { roomId, passphrase };
 }
 
@@ -93,9 +94,10 @@ test('A creates, B joins, E2EE handshake completes and text is exchanged', async
   await ctxB.close();
 });
 
-test('joining a non-existent room shows an error', async ({ page }) => {
+test('joining a not-yet-opened room waits for the host', async ({ page }) => {
+  // 受邀方经链接先到、房主尚未开房 → 不报错，进入「等待房主」并自动重试 join。
   await page.goto('/000000001');
   await page.getByPlaceholder(/口令/).fill('any-passphrase-here-1234');
   await page.getByRole('button', { name: /解密并进入/ }).click();
-  await expect(page.getByText(/无法进入房间|房间不存在/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/房间尚未开启/)).toBeVisible({ timeout: 10_000 });
 });
